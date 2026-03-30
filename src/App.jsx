@@ -8,9 +8,31 @@ import { likeName, undoLike } from './utils/api'
 
 const VIEWS = { LANDING: 'landing', SWIPE: 'swipe', MATCHES: 'matches', DONE: 'done' }
 
+// Seeded shuffle — each partner gets their own random order
+function seedFromString(str) {
+  let hash = 0
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0
+  }
+  return Math.abs(hash) || 1
+}
+
+function shuffleWithSeed(array, seed) {
+  const shuffled = [...array]
+  let m = shuffled.length
+  let rng = seed
+  while (m) {
+    rng = (rng * 16807 + 0) % 2147483647
+    const i = rng % m--
+    ;[shuffled[m], shuffled[i]] = [shuffled[i], shuffled[m]]
+  }
+  return shuffled
+}
+
 export default function App() {
   const [view, setView] = useState(VIEWS.LANDING)
   const [partner, setPartner] = useState(null)
+  const [rawNames, setRawNames] = useState([])
   const [names, setNames] = useState([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [processedIds, setProcessedIds] = useState(new Set())
@@ -33,9 +55,15 @@ export default function App() {
   useEffect(() => {
     fetch('/names.json')
       .then(r => r.json())
-      .then(data => setNames(data))
+      .then(data => setRawNames(data))
       .catch(err => console.error('Failed to load names:', err))
   }, [])
+
+  // Shuffle names with partner-specific seed
+  useEffect(() => {
+    if (!partner || rawNames.length === 0) return
+    setNames(shuffleWithSeed(rawNames, seedFromString(partner)))
+  }, [partner, rawNames])
 
   // Load processed/liked IDs from localStorage
   useEffect(() => {
